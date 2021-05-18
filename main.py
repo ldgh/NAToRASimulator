@@ -14,7 +14,7 @@ class city:
         for gen in range(numberOfGeneration):
             self.generations[gen] = {}
 
-    def changeParentsToGetStep(self, generation):
+    def changeParentsToGetHalf(self, generation):
         keys = self.generations[generation].keys()
         first = min(keys)
         last = max(keys)
@@ -45,7 +45,7 @@ class city:
                 else:
                     if len(self.generations[generation][family2].children) == 0:
                         family2 = family1
-        #print(f"I found two individuals non related to create step brothers: {indToChange1} and {indToChange2}")
+        #print(f"I found two individuals non related to create half brothers: {indToChange1} and {indToChange2}")
 
         if(toChange == "m"):
             removed = self.generations[generation][family2].changeMother(indToChange1)
@@ -191,14 +191,14 @@ def mergeGenealogies(inputFile, myCity):
         if numberOfTries <= 0:
             return True
 
-        #Now, step brothers
+        #Now, half brothers
         if generation != 0:
-            numberOfStep = inputFile[generation]['step'] * (inputFile[generation]['male']+inputFile[generation]['female'])
-            if int(numberOfStep) > 0:
-                stepBrothers = 0
-                while stepBrothers < numberOfStep:
-                    created = myCity.changeParentsToGetStep(previous)
-                    stepBrothers = stepBrothers + created
+            numberOfHalf = inputFile[generation]['half'] * (inputFile[generation]['male']+inputFile[generation]['female'])
+            if int(numberOfHalf) > 0:
+                halfBrothers = 0
+                while halfBrothers < numberOfHalf:
+                    created = myCity.changeParentsToGetHalf(previous)
+                    halfBrothers = halfBrothers + created
         numberOfTries = 50
     return False
 
@@ -342,7 +342,7 @@ def createSubGenealogies(inputFile, myCity):
     #myCity.printCity()
     return myCity, individuals
 #input
-#men #woman %unrelated %step
+#men #woman %unrelated %half
 
 def readInputFile(inputFile):
     file = open(inputFile, 'r')
@@ -354,7 +354,7 @@ def readInputFile(inputFile):
         inputData[gen]["male"] = int(splitted[0])
         inputData[gen]["female"] = int(splitted[1])
         inputData[gen]["unrelated"] = float(splitted[2])
-        inputData[gen]["step"] = float(splitted[3])
+        inputData[gen]["half"] = float(splitted[3])
         gen = gen+1
 
     return inputData
