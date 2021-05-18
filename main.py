@@ -1,3 +1,5 @@
+import argparse
+import networkx as nx
 import random as rd
 import pandas as pd
 import sys
@@ -198,9 +200,6 @@ def mergeGenealogies(inputFile, myCity):
                     created = myCity.changeParentsToGetStep(previous)
                     stepBrothers = stepBrothers + created
         numberOfTries = 50
-
-
-
     return False
 
 
@@ -246,6 +245,77 @@ def getList (individuals, type, generation):
         toReturn = individuals.query(f"Generation == {generation}")["ID"].to_list()
     return toReturn
 
+def isValid(path, individuals):
+    valid = True
+
+    first = path[0]
+    genFirst = individuals.iloc[first]["Generation"]
+    genNext = individuals.iloc[path[1]]["Generation"]
+
+    # setting descendant
+    if genFirst < genNext:
+        genNow = genNext
+        for i in range(2, len(path)):
+            genNext = individuals.iloc[path[i]]["Generation"]
+
+            if genNow > genNext:
+                valid = False
+
+            genNow = genNext
+
+    # setting ascendant
+    else:
+        up = True
+        genNow = genNext
+        for i in range(2, len(path)):
+            genNext = individuals.iloc[path[i]]["Generation"]
+
+            if genNow > genNext and not up:
+                valid = False
+            elif genNow < genNext and up:
+                up = False
+            genNow = genNext
+
+    return valid
+
+def createNetwork(city, individuals, outputFile):
+    file = open(outputFile, 'w')
+
+    N = nx.Graph()
+
+    N.add_nodes_from(individuals.ID)
+
+    for generation in city.generations:
+        for family in city.generations[generation]:
+            father = city.generations[generation][family].father
+            mother = city.generations[generation][family].mother
+            for children in city.generations[generation][family].children:
+                N.add_edge(father, children)
+                N.add_edge(mother, children)
+
+    for source in N.nodes():
+        for target in N.nodes():
+            validPath = []
+            if source != target:
+                #print(f"{source} and {target}")
+                try:
+                    allPaths = nx.all_shortest_paths(N, source, target)
+                    for path in allPaths:
+
+                        if isValid(path, individuals):
+                            validPath.append(path)
+                except:
+                    pass
+
+                sumKinship = 0
+                #print(validPath)
+                if(validPath):
+                    for path in validPath:
+                        kinship = 1/(2 ** len(path))
+                        sumKinship = sumKinship + kinship
+                    file.write(f"{path[0]}\t{path[-1]}\t{sumKinship}\n")
+    file.close()
+
 def createSubGenealogies(inputFile, myCity):
     individuals = pd.DataFrame(columns=['ID', 'Sex', 'Generation'])
     id = 0
@@ -274,42 +344,54 @@ def createSubGenealogies(inputFile, myCity):
 #input
 #men #woman %unrelated %step
 
-inputFile={}
-inputFile[0]={}
-inputFile[0]['male']=2
-inputFile[0]['female']=2
-inputFile[0]['unrelated']=0
-inputFile[0]['step']=0
+def readInputFile(inputFile):
+    file = open(inputFile, 'r')
+    gen = 0
+    inputData = {}
+    for line in file:
+        splitted = line.split('\t')
+        inputData[gen] = {}
+        inputData[gen]["male"] = int(splitted[0])
+        inputData[gen]["female"] = int(splitted[1])
+        inputData[gen]["unrelated"] = float(splitted[2])
+        inputData[gen]["step"] = float(splitted[3])
+        gen = gen+1
 
-inputFile[1]={}
-inputFile[1]['male']=5
-inputFile[1]['female']=5
-inputFile[1]['unrelated']=0.4
-inputFile[1]['step']=0.1
+    return inputData
 
-inputFile[2]={}
-inputFile[2]['male']=5
-inputFile[2]['female']=5
-inputFile[2]['unrelated']=0.5
-inputFile[2]['step']=0
 
-loop = True
-numberOfTries = 0
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='3A script: Automated Ancestry Analysis Script')
 
-while loop and numberOfTries < 50:
-    loop = False
-    print(f"Creating city ({numberOfTries})")
-    myCity = city(3)
-    print(f"Creating the sub-genealogies ({numberOfTries})")
-    myCity, individuals = createSubGenealogies(inputFile, myCity)
-    print(f"Merging the sub-genealogies ({numberOfTries})")
-    loop = mergeGenealogies(inputFile, myCity)
+    required = parser.add_argument_group("Required arguments")
+    required.add_argument('-i', '--input', help='Name of the input file', required=True)
+    required.add_argument('-o', '--output', help='Name fo the output file',
+                          required=True)
 
-    if(loop):
-        numberOfTries = numberOfTries + 1
+    args = parser.parse_args()
 
-if numberOfTries == 50:
-    print("I tried 50 times to get a valid genealogy. It was not possible, please change your input file and try again")
-else:
-    print(f"Sai do loop com {numberOfTries} tentativas")
-    myCity.printCity()
+    inputFile = readInputFile (args.input)
+    outputFile = args.output
+
+    loop = True
+    numberOfTries = 0
+
+    while loop and numberOfTries < 50:
+        loop = False
+        print(f"Creating city ({numberOfTries})")
+        myCity = city(3)
+        print(f"Creating the sub-genealogies ({numberOfTries})")
+        myCity, individuals = createSubGenealogies(inputFile, myCity)
+        print(f"Merging the sub-genealogies ({numberOfTries})")
+        loop = mergeGenealogies(inputFile, myCity)
+
+        if(loop):
+            numberOfTries = numberOfTries + 1
+
+    if numberOfTries == 50:
+        print("I tried 50 times to get a valid genealogy. It was not possible, please change your input file and try again")
+    else:
+        myCity.printCity()
+        N = createNetwork(myCity, individuals, outputFile)
+        #print(f"Sai do loop com {numberOfTries} tentativas")
+        #myCity.printCity()
