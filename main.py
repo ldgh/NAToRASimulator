@@ -319,7 +319,7 @@ def createNetwork(city, individuals, outputFile):
 def createSubGenealogies(inputFile, myCity):
     individuals = pd.DataFrame(columns=['ID', 'Sex', 'Generation'])
     id = 0
-
+    print(len(inputFile))
     for generation in range(0,len(inputFile)):
         maleList = []
         femaleList =[]
@@ -357,7 +357,7 @@ def readInputFile(inputFile):
         inputData[gen]["half"] = float(splitted[3])
         gen = gen+1
 
-    return inputData
+    return inputData, gen
 
 
 if __name__ == '__main__':
@@ -370,7 +370,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    inputFile = readInputFile (args.input)
+    inputFile, gen = readInputFile (args.input)
     outputFile = args.output
 
     loop = True
@@ -379,7 +379,7 @@ if __name__ == '__main__':
     while loop and numberOfTries < 50:
         loop = False
         print(f"Creating city ({numberOfTries})")
-        myCity = city(3)
+        myCity = city(gen)
         print(f"Creating the sub-genealogies ({numberOfTries})")
         myCity, individuals = createSubGenealogies(inputFile, myCity)
         print(f"Merging the sub-genealogies ({numberOfTries})")
